@@ -370,18 +370,117 @@ El interprete usa recursividad
 
 
 
-;Test para fun {n ....}
+#|
+Errores encontrados en los la aplicacion de funcion debido a que me deveuelve un clousureV con su envierment vacio
+en vez de un valV  con la respuesta de la aplicacion de funcion en esta misma
+|#
+
+#|
+(if (list? args)
+      (let ([vals (map (λ (x) (valV-v x)) args)])
+        (if (isPrim op-name lstPrimitives)
+            (valV ((cdr (assq op-name lstPrimitives)) vals)) 
+            (valV (apply (cdr (assq op-name primitives)) vals))
+        )
+    )
+      (let ([val (valV-v args)])
+        (valV ((cdr (assq op-name strPrimitives)) val))
+        )
+      )
+|#
+
+
+#|
+
+PROBLEMA 1:
+Extienda el lenguaje base para soportar booleanos, strings, una sentencia if, una sentencia seqn y
+soporte de listas. Para strings, soporte tres operaciones sobre listas (a eleccion del grupo) y para listas
+soporte list, car, cdr y empty.
+
+|#
+; TEST BOOLEANOS
+(test (run '#t) #t)
+(test (run '#f) #f)
+; TEST STRINGS
+(test (run '"Hello World!") "Hello World!")
+; TEST IF
+(test (run '{if-tf #t 2 3}) 2)
+(test (run '{if-tf #f 1 2}) 2)
+; TEST SEQN
+
+; TODO
+
+; TEST LISTAS
+(test (run '{lst {1 2 3 4}}) '{1 2 3 4})
+(test (run '{lst {"hola" "como" "estas" "?"}}) '{"hola" "como" "estas" "?"})
+(test (run '{lst {#f #t #f}}) '{#f #t #f})
+(test (run '{first {1 2 3 4}}) 1)
+(test (run '{rest {1 2 3 4}}) '{2 3 4})
+(test (run '{lst-length {1 2 3 4}}) 4)
+(test (run '{ {fun {x} {first x}} {6 4 1 7}}) ( (λ (x) (first x)) '(6 4 1 7)))
+(test (run '{ {fun {x} {first {first x}}} {lst {{6 4} {1 7}}}}) ( (λ (x) (first (first x))) '((6 4) (1 7))))
+; TODO EMPTY
+
+; OPERACIONES STRINGS
+
+; TODO 2 OPERACIONES (str-length ya esta)
+
+#|
+
+PROBLEMA 2:
+Extienda el lenguaje base para que las operaciones primitivas soporten infinitos argumentos (si es
+necesario), documente las primitivas y las restricciones que tengan (si aceptan n o menos argumentos).
+El comportamiento de aceptar n argumentos tambi ́en debe ser posible en with y en la declaracion de
+funciones. 
+
+|#
+
+; TEST PRIMITIVAS
+(test (run '{* 5 4 3 2 1}) 120)
+(test (run '{+ 6 1 3 5}) 15)
+(test (run '{- 40 4 7 1}) 28)
+(test (run '{/ 60 2 3 5}) 2)
+
+; TEST WITH
+
+; TODO?
+
+; TEST FUNCION
 (test (run '{{fun (a b) {+ a b}} {3 2}}) 5)
 (test (run '{{fun (a b c) {+ a {- b c}}} {3 2 1}}) 4)
 (test (run '{{fun {x y z t u} {- u {+ t {- z {- y x}}}}} {4 8 6 3 8}}) 3)
 (test (run '{{fun {x y z t u s}  {+ s {- u {+ t {- z {- y x}}}}}} {4 8 6 3 5 7}}) 7)
 
 #|
-Errores encontrados en los la aplicacion de funcion debido a que me deveuelve un clousureV con su envierment vacio
-en vez de un valV  con la respuesta de la aplicacion de funcion en esta misma
+
+PROBLEMA 3:
+Introduce la funcionalidad delay/force tal que delay crea una promesa de evaluacion de una expresion
+arbitraria y force fuerza la evaluacion de una promesa a un valor (o retorna el valor si su argumento
+no es una promesa). 
+
 |#
-#|Factorial|#
-(printf "Factorial: ~n")
+
+; TEST DELAY
+(test (run '{delay {+ 5 3 2}}) (promiseV (parse '{+ 5 3 2}) (extend-env 'Y (interp (parse '{fun {f} {with {h {fun {g} {fun {n} {{f {g g}} n}}}} {h h}}})
+                                         empty-env) empty-env)))
+(test/exn (run '{delay {fun {x} {x}}}) "Error only delay prim opetations: this is not prim -> 'fun")
+
+; TEST FORCE
+(test (run '{force {delay {+ 6 7 2}}}) 15)
+(test (run '{force {* 5 6 2}}) 60)
+(test/exn (run '{force { {fun {x} {+ x x}} 2}}) "Error only force prim opetations and promise expr: this is not prim -> '(fun (x) (+ x x))")
+
+#|
+
+PROBLEMA 4:
+Extienda el interprete FAE para permitir la definici ́on de funciones recursivas como azucar sint ́actico
+y manteniendo el lambda calculo. 
+
+|#
+
+;TEST RECURSIVIDAD
+
+; Factorial
 
 (test (run '{rec {factorial {fun {n} {if-tf {zero?? n}
                                        1
@@ -392,8 +491,7 @@ en vez de un valV  con la respuesta de la aplicacion de funcion en esta misma
                                        1
                                        {* n {factorial {- n 1}}}
                                        }}} {factorial 5}}) 120)
-;Fibonachi
-(printf "Fibonachi: ~n")
+; Fibonachi
 (test (run '{rec {fibonachi {fun {n} {if-tf {< n 2}
                                             n
                                             {+ {fibonachi {- n 1}} {fibonachi {- n 2}}}
@@ -410,46 +508,16 @@ en vez de un valV  con la respuesta de la aplicacion de funcion en esta misma
                                             n
                                             {+ {fibonachi {- n 1}} {fibonachi {- n 2}}}
                                             }}} {fibonachi 8}}) 21)
-(printf "Listas: ~n")
-(test (run '{lst {1 2 3 4}}) (run '{{1 2 3 4}}))
-(test (run '{lst {"hola" "como" "estas" "?"}}) (run '{{"hola" "como" "estas" "?"}}))
-(test (run '{lst {#f #t #f}}) (run '{{#f #t #f}}))
-(test (run '{first {1 2 3 4}}) (first '{1 2 3 4}))
-(test (run '{rest {1 2 3 4}}) (rest '{1 2 3 4}))
-(test (run '{lst-length {1 2 3 4}}) (length '(1 2 3 4)))
-(test (run '{ {fun {x} {first x}} {6 4 1 7}}) ( (λ (x) (first x)) '(6 4 1 7)))
-(test (run '{ {fun {x} {first {first x}}} {lst {{6 4} {1 7}}}}) ( (λ (x) (first (first x))) '((6 4) (1 7))))
 
-(printf "Primitivas: ~n")
-(test (run '{* 5 4 3 2 1}) 120)
-(test (run '{+ 6 1 3 5}) 15)
-(test (run '{- 40 4 7 1}) 28)
-(test (run '{/ 60 2 3 5}) 2)
+#|
 
-(printf "Delay and Force: ~n")
-(test (run '{delay {+ 5 3 2}}) (promiseV (parse '{+ 5 3 2}) (extend-env 'Y (interp (parse '{fun {f} {with {h {fun {g} {fun {n} {{f {g g}} n}}}} {h h}}})
-                                         empty-env) empty-env)))
-(test/exn (run '{delay {fun {x} {x}}}) "Error only delay prim opetations: this is not prim -> 'fun")
-(test (run '{force {delay {+ 6 7 2}}}) 15)
-(test (run '{force {* 5 6 2}}) 60)
-(test/exn (run '{force { {fun {x} {+ x x}} 2}}) "Error only force prim opetations and promise expr: this is not prim -> '(fun (x) (+ x x))")
+PROBLEMA 5:
+Extienda el interprete FAE para la creaci ́on de funciones con evaluacion perezosa, usando el keyword
+lazy para definirlas, escribe pruebas basicas que demuestran el correcto funcionamiento de tu implementacion 
 
-(printf "Lazy functions: ~n")
+|#
+
+; TEST LAZY
 (test (run '{lazy {fun {x} {+ x x}}}) (promiseV (parse '{fun {x} {+ x x}}) (extend-env 'Y (interp (parse '{fun {f} {with {h {fun {g} {fun {n} {{f {g g}} n}}}} {h h}}})
                                          empty-env) empty-env)))
 (test (run '{{lazy {fun {x} {+ x x}}} 5}) 10)
-
-
-#|
-(if (list? args)
-      (let ([vals (map (λ (x) (valV-v x)) args)])
-        (if (isPrim op-name lstPrimitives)
-            (valV ((cdr (assq op-name lstPrimitives)) vals)) 
-            (valV (apply (cdr (assq op-name primitives)) vals))
-        )
-    )
-      (let ([val (valV-v args)])
-        (valV ((cdr (assq op-name strPrimitives)) val))
-        )
-      )
-|#
